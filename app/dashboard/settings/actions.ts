@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/supabase/require-auth";
 import { createEZCountDoc } from "@/lib/ezcount";
+import { sendEmail } from "@/lib/gmail";
 import { z } from "zod";
 
 const SettingsSchema = z.object({
@@ -55,7 +56,6 @@ export async function testGmailAction(): Promise<{ ok: boolean; error?: string; 
   if (!to) return { ok: false, error: "GMAIL_USER_EMAIL לא מוגדר ב-Vercel Environment Variables" };
 
   try {
-    const { sendEmail } = await import("@/lib/gmail");
     await sendEmail({
       refreshToken: settings.gmail_refresh_token,
       to,
