@@ -46,7 +46,6 @@ export async function createEZCountDoc(params: CreateDocParams): Promise<{ docNu
     customer_email:       params.clientEmail,
     lang:                 "he",
     send_email_original:  "false",
-    "item[0][details]":   "",
     "vat_type":           "1",
   });
 

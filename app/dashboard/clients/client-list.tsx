@@ -14,6 +14,7 @@ type ClientWithLines = ClientRow & { lines: LineTemplateRow[] };
 
 interface Props {
   clients: ClientWithLines[];
+  vatRate: number;
 }
 
 const btnBase: React.CSSProperties = {
@@ -30,7 +31,7 @@ const btnBase: React.CSSProperties = {
   transition: "all 0.15s",
 };
 
-export default function ClientList({ clients }: Props) {
+export default function ClientList({ clients, vatRate }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
   const [editing, setEditing] = useState<ClientWithLines | undefined>();
@@ -285,7 +286,7 @@ export default function ClientList({ clients }: Props) {
 
       {/* Manual Send */}
       {manualSendTarget && (
-        <ManualSendModal client={manualSendTarget} onClose={() => setManualSendTarget(null)} />
+        <ManualSendModal client={manualSendTarget} vatRate={vatRate} onClose={() => setManualSendTarget(null)} />
       )}
 
       {/* Delete Confirm */}

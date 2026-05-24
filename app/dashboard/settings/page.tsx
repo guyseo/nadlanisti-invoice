@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/supabase/require-auth";
 import SettingsForm from "./settings-form";
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
+  const supabase = await requireAuth();
   const { data: settings } = await supabase
     .from("app_settings")
     .select("*")
@@ -17,6 +17,16 @@ export default async function SettingsPage() {
     );
   }
 
+  const hasEzcountKey = !!settings.ezcount_api_key;
+  const hasGmailToken = !!settings.gmail_refresh_token;
+
+  // Strip secrets — never serialize API keys / tokens to the client bundle
+  const safeSettings = {
+    ...settings,
+    ezcount_api_key:     "",
+    gmail_refresh_token: "",
+  };
+
   return (
     <div style={{ maxWidth: "720px" }}>
       <div style={{ marginBottom: "32px" }}>
@@ -28,7 +38,11 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <SettingsForm settings={settings} />
+      <SettingsForm
+        settings={safeSettings}
+        hasEzcountKey={hasEzcountKey}
+        hasGmailToken={hasGmailToken}
+      />
     </div>
   );
 }

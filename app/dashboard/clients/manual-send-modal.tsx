@@ -14,6 +14,7 @@ type ClientWithLines = ClientRow & { lines: LineTemplateRow[] };
 
 interface Props {
   client: ClientWithLines;
+  vatRate: number;
   onClose: () => void;
 }
 
@@ -58,7 +59,7 @@ function currentMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export default function ManualSendModal({ client, onClose }: Props) {
+export default function ManualSendModal({ client, vatRate, onClose }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [emailPreview, setEmailPreview] = useState<EmailPreviewData | null>(null);
@@ -151,7 +152,7 @@ export default function ManualSendModal({ client, onClose }: Props) {
 
         {/* Body */}
         <form
-          onSubmit={form.handleSubmit((v) => onSubmit(v as FormValues))}
+          onSubmit={form.handleSubmit((v) => onSubmit(v as unknown as FormValues))}
           style={{ overflowY: "auto", padding: "24px", flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}
         >
           {/* Month + doc type */}
@@ -267,12 +268,12 @@ export default function ManualSendModal({ client, onClose }: Props) {
                 <span style={{ fontFamily: "monospace" }}>₪{subtotal.toLocaleString("he-IL")}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "rgba(255,255,255,0.3)", marginBottom: "8px" }}>
-                <span>מע״מ 18%</span>
-                <span style={{ fontFamily: "monospace" }}>₪{(subtotal * 0.18).toFixed(0)}</span>
+                <span>מע״מ {Math.round(vatRate * 100)}%</span>
+                <span style={{ fontFamily: "monospace" }}>₪{Math.round(subtotal * vatRate).toLocaleString("he-IL")}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "15px", fontWeight: 900, color: "white", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "8px" }}>
                 <span>סה״כ לתשלום</span>
-                <span style={{ fontFamily: "monospace", color: "#a5b4fc" }}>₪{(subtotal * 1.18).toLocaleString("he-IL")}</span>
+                <span style={{ fontFamily: "monospace", color: "#a5b4fc" }}>₪{(subtotal + Math.round(subtotal * vatRate)).toLocaleString("he-IL")}</span>
               </div>
             </div>
           )}

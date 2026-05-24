@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient as createSupabase } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/supabase/require-auth";
 import { createEZCountDoc } from "@/lib/ezcount";
 import { buildInvoiceEmail } from "@/lib/email-templates";
 import { calcTotals } from "@/lib/calc";
@@ -40,7 +40,7 @@ export async function createClientAction(values: ClientFormValues): Promise<Acti
   const parsed = ClientSchema.safeParse(values);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
 
-  const supabase = await createSupabase();
+  const supabase = await requireAuth();
   const { lines, ...clientData } = parsed.data;
 
   const { data: client, error } = await supabase
@@ -66,17 +66,20 @@ export async function updateClientAction(id: string, values: ClientFormValues): 
   const parsed = ClientSchema.safeParse(values);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
 
-  const supabase = await createSupabase();
+  const supabase = await requireAuth();
   const { lines, ...clientData } = parsed.data;
 
   const { error } = await supabase.from("clients").update(clientData).eq("id", id);
   if (error) return { success: false, error: error.message };
 
-  await supabase.from("invoice_line_templates").delete().eq("client_id", id);
+  const { error: deleteErr } = await supabase.from("invoice_line_templates").delete().eq("client_id", id);
+  if (deleteErr) return { success: false, error: deleteErr.message };
+
   if (lines.length > 0) {
-    await supabase.from("invoice_line_templates").insert(
+    const { error: insertErr } = await supabase.from("invoice_line_templates").insert(
       lines.map((l, i) => ({ ...l, client_id: id, sort_order: i }))
     );
+    if (insertErr) return { success: false, error: insertErr.message };
   }
 
   revalidatePath("/dashboard/clients");
@@ -84,7 +87,7 @@ export async function updateClientAction(id: string, values: ClientFormValues): 
 }
 
 export async function toggleClientActiveAction(id: string, active: boolean): Promise<ActionResult> {
-  const supabase = await createSupabase();
+  const supabase = await requireAuth();
   const { error } = await supabase.from("clients").update({ active }).eq("id", id);
   if (error) return { success: false, error: error.message };
   revalidatePath("/dashboard/clients");
@@ -92,7 +95,7 @@ export async function toggleClientActiveAction(id: string, active: boolean): Pro
 }
 
 export async function toggleAutomationAction(id: string, automation_active: boolean): Promise<ActionResult> {
-  const supabase = await createSupabase();
+  const supabase = await requireAuth();
   const { error } = await supabase.from("clients").update({ automation_active }).eq("id", id);
   if (error) return { success: false, error: error.message };
   revalidatePath("/dashboard/clients");
@@ -100,7 +103,7 @@ export async function toggleAutomationAction(id: string, automation_active: bool
 }
 
 export async function deleteClientAction(id: string): Promise<ActionResult> {
-  const supabase = await createSupabase();
+  const supabase = await requireAuth();
   const { error } = await supabase.from("clients").delete().eq("id", id);
   if (error) return { success: false, error: "לא ניתן למחוק לקוח עם חשבוניות קיימות" };
   revalidatePath("/dashboard/clients");
@@ -111,7 +114,7 @@ export async function createManualInvoiceAction(
   clientId: string,
   values: { billing_month: string; doc_type: 300 | 305 | 320 | 400; lines: LineItem[] }
 ): Promise<ActionResult<EmailPreviewData>> {
-  const supabase = await createSupabase();
+  const supabase = await requireAuth();
 
   const { data: client, error: clientErr } = await supabase
     .from("clients").select("*").eq("id", clientId).single();
@@ -196,7 +199,7 @@ export async function createManualInvoiceAction(
 export async function importClientsAction(
   rows: ClientFormValues[]
 ): Promise<ActionResult<{ imported: number; failed: number }>> {
-  const supabase = await createSupabase();
+  const supabase = await requireAuth();
   let imported = 0;
   let failed = 0;
 

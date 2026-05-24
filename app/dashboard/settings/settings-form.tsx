@@ -16,7 +16,7 @@ import {
 } from "@/lib/email-templates";
 
 const SettingsSchema = z.object({
-  ezcount_api_key:       z.string().min(1, "נדרש"),
+  ezcount_api_key:       z.string().optional().nullable(),
   ezcount_api_email:     z.string().email("אימייל לא תקין"),
   gmail_refresh_token:   z.string().optional().nullable(),
   vat_rate:              z.number().min(0).max(1),
@@ -28,6 +28,8 @@ const SettingsSchema = z.object({
 
 interface Props {
   settings: AppSettingsRow;
+  hasEzcountKey: boolean;
+  hasGmailToken: boolean;
 }
 
 const fieldStyle: React.CSSProperties = {
@@ -70,7 +72,7 @@ const sectionTitleStyle: React.CSSProperties = {
   marginBottom: "20px",
 };
 
-export default function SettingsForm({ settings }: Props) {
+export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }: Props) {
   const [showKey, setShowKey]     = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -112,12 +114,24 @@ export default function SettingsForm({ settings }: Props) {
         <p style={sectionTitleStyle}>EZCount — חיבור לחשבוניות</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
           <div>
-            <label style={labelStyle}>API Key</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "7px" }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>API Key</label>
+              {hasEzcountKey && (
+                <span style={{
+                  fontSize: "10px", fontWeight: 700, color: "#86efac",
+                  background: "rgba(134,239,172,0.1)", border: "1px solid rgba(134,239,172,0.25)",
+                  borderRadius: "4px", padding: "1px 7px",
+                }}>
+                  מוגדר ✓
+                </span>
+              )}
+            </div>
             <div style={{ position: "relative" }}>
               <input
                 {...form.register("ezcount_api_key")}
                 type={showKey ? "text" : "password"}
                 dir="ltr"
+                placeholder={hasEzcountKey ? "השאר ריק כדי לא לשנות" : "הכנס API key"}
                 style={{ ...fieldStyle, paddingLeft: "40px" }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.5)"; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
@@ -130,9 +144,6 @@ export default function SettingsForm({ settings }: Props) {
                 {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
-            {form.formState.errors.ezcount_api_key && (
-              <p style={{ fontSize: "11px", color: "#fca5a5", marginTop: "4px" }}>{form.formState.errors.ezcount_api_key.message}</p>
-            )}
           </div>
           <div>
             <label style={labelStyle}>אימייל EZCount</label>
@@ -155,14 +166,25 @@ export default function SettingsForm({ settings }: Props) {
       <div style={sectionStyle}>
         <p style={sectionTitleStyle}>Gmail — שליחת מיילים</p>
         <div>
-          <label style={labelStyle}>Gmail Refresh Token</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "7px" }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>Gmail Refresh Token</label>
+            {hasGmailToken && (
+              <span style={{
+                fontSize: "10px", fontWeight: 700, color: "#86efac",
+                background: "rgba(134,239,172,0.1)", border: "1px solid rgba(134,239,172,0.25)",
+                borderRadius: "4px", padding: "1px 7px",
+              }}>
+                מוגדר ✓
+              </span>
+            )}
+          </div>
           <div style={{ position: "relative" }}>
             <input
               {...form.register("gmail_refresh_token")}
               type={showToken ? "text" : "password"}
               dir="ltr"
               style={{ ...fieldStyle, paddingLeft: "40px" }}
-              placeholder="1//0g..."
+              placeholder={hasGmailToken ? "השאר ריק כדי לא לשנות" : "1//0g..."}
               onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.5)"; }}
               onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
             />

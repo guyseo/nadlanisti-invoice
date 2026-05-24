@@ -1,18 +1,29 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/supabase/require-auth";
 import { createEZCountDoc } from "@/lib/ezcount";
 import { sendEmail } from "@/lib/gmail";
 import { calcTotals } from "@/lib/calc";
 import { buildInvoiceEmail } from "@/lib/email-templates";
+import { generateMonthlyDrafts, currentBillingMonth } from "@/lib/draft-generator";
 import type { ActionResult, LineItem, EmailPreviewData } from "@/lib/types";
 
 export type { EmailPreviewData };
 
+export async function generateDraftsAction(
+  billingMonth?: string
+): Promise<ActionResult<{ created: number; skipped: number; errors: string[] }>> {
+  const supabase = await requireAuth();
+  const month = billingMonth ?? currentBillingMonth();
+  const result = await generateMonthlyDrafts(supabase, month);
+  revalidatePath("/dashboard/queue");
+  return { success: true, data: result };
+}
+
 /* ── Step 1: approve → EZCount only, return email preview ── */
 export async function approveDraftAction(draftId: string): Promise<ActionResult<EmailPreviewData>> {
-  const supabase = await createClient();
+  const supabase = await requireAuth();
 
   const { data: draft, error: draftErr } = await supabase
     .from("invoice_drafts")
@@ -110,7 +121,7 @@ export async function approveDraftAction(draftId: string): Promise<ActionResult<
     subtotal,
     vat,
     total,
-    billingMonth: new Date(draft.billing_month + "-01").toLocaleDateString("he-IL", { month: "long", year: "numeric" }),
+    billingMonth: new Date(draft.billing_month + "-02").toLocaleDateString("he-IL", { month: "long", year: "numeric" }),
   });
 
   return {
@@ -125,7 +136,7 @@ export async function sendDraftEmailAction(
   subject: string,
   body: string
 ): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = await requireAuth();
 
   const { data: draft } = await supabase
     .from("invoice_drafts")
@@ -145,14 +156,16 @@ export async function sendDraftEmailAction(
     return { success: false, error: "Gmail לא מוגדר בהגדרות — החשבונית נשמרה ללא שליחת מייל" };
   }
 
+  const invoiceTo: string = client.invoice_email || client.email;
+
   try {
-    await sendEmail({ refreshToken: settings.gmail_refresh_token, to: client.email, subject, body });
+    await sendEmail({ refreshToken: settings.gmail_refresh_token, to: invoiceTo, subject, body });
 
     await supabase.from("email_log").insert({
       client_id:  client.id,
       draft_id:   draftId,
       email_type: "invoice" as const,
-      to_email:   client.email,
+      to_email:   invoiceTo,
       subject,
       status:     "sent",
     });
@@ -170,7 +183,7 @@ export async function sendDraftEmailAction(
 }
 
 export async function skipDraftAction(draftId: string): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = await requireAuth();
   const { error } = await supabase
     .from("invoice_drafts")
     .update({ status: "skipped" })
@@ -185,7 +198,7 @@ export async function updateDraftLinesAction(
   draftId: string,
   lineItems: LineItem[]
 ): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = await requireAuth();
 
   // Load vat_rate from settings
   const { data: settings } = await supabase.from("app_settings").select("vat_rate").eq("id", 1).single();

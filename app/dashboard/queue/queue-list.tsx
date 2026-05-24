@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Check, SkipForward, ChevronDown, ChevronUp } from "lucide-react";
-import { approveDraftAction, skipDraftAction } from "./actions";
+import { Check, SkipForward, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { approveDraftAction, skipDraftAction, generateDraftsAction } from "./actions";
 import type { EmailPreviewData } from "./actions";
 import EmailPreviewModal from "./email-preview-modal";
 import { DOC_TYPE_LABELS } from "@/lib/types";
@@ -16,9 +17,28 @@ interface Props {
 }
 
 export default function QueueList({ drafts }: Props) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [emailPreview, setEmailPreview] = useState<EmailPreviewData | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateMsg, setGenerateMsg] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    setGenerating(true);
+    setGenerateMsg(null);
+    const result = await generateDraftsAction();
+    setGenerating(false);
+    if (result.success && result.data) {
+      const { created, skipped } = result.data;
+      setGenerateMsg(
+        created === 0 && skipped > 0
+          ? `כל הטיוטות לחודש זה כבר קיימות (${skipped} לקוחות)`
+          : `נוצרו ${created} טיוטות חדשות${skipped > 0 ? ` · ${skipped} כבר קיימות` : ""}`
+      );
+      router.refresh();
+    }
+  }
 
   async function handleApprove(draftId: string) {
     setLoading(draftId + "_approve");
@@ -50,13 +70,53 @@ export default function QueueList({ drafts }: Props) {
             {drafts.length} טיוטות ממתינות לאישור
           </p>
         </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              padding: "8px 16px",
+              background: generating ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.12)",
+              border: "1px solid rgba(99,102,241,0.3)",
+              borderRadius: "8px", color: "#a5b4fc",
+              fontSize: "12px", fontWeight: 700,
+              cursor: generating ? "not-allowed" : "pointer",
+            }}
+          >
+            <RefreshCw size={13} style={{ animation: generating ? "spin 1s linear infinite" : "none" }} />
+            {generating ? "יוצר טיוטות..." : "יצור טיוטות לחודש הזה"}
+          </button>
+          {generateMsg && (
+            <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{generateMsg}</p>
+          )}
+        </div>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {drafts.length === 0 ? (
         <div style={{ border: "1px dashed rgba(255,255,255,0.1)", borderRadius: "12px", padding: "60px", textAlign: "center" }}>
           <p style={{ fontSize: "22px", fontWeight: 900, color: "white", marginBottom: "8px" }}>הכל נקי ✓</p>
-          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)" }}>אין טיוטות ממתינות לאישור</p>
-          <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.2)", marginTop: "12px" }}>טיוטות נוצרות אוטומטית ב-1 לחודש</p>
+          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)", marginBottom: "20px" }}>אין טיוטות ממתינות לאישור</p>
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "6px",
+              padding: "10px 20px",
+              background: generating ? "rgba(99,102,241,0.3)" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              border: "none", borderRadius: "8px", color: "white",
+              fontSize: "13px", fontWeight: 700,
+              cursor: generating ? "not-allowed" : "pointer",
+              boxShadow: generating ? "none" : "0 0 20px rgba(99,102,241,0.3)",
+            }}
+          >
+            <RefreshCw size={14} style={{ animation: generating ? "spin 1s linear infinite" : "none" }} />
+            {generating ? "יוצר טיוטות..." : "יצור טיוטות לחודש הזה"}
+          </button>
+          {generateMsg && (
+            <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "12px" }}>{generateMsg}</p>
+          )}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
