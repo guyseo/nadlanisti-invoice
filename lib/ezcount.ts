@@ -39,14 +39,14 @@ export async function createEZCountDoc(params: CreateDocParams): Promise<{ docNu
   const customerName = params.ezCountCustomerName?.trim() || params.clientName;
 
   const body = new URLSearchParams({
-    api_key:              params.apiKey,
-    api_email:            params.apiEmail,
-    doc_type:             String(params.docType),
-    customer_name:        customerName,
-    customer_email:       params.clientEmail,
-    lang:                 "he",
-    send_email_original:  "false",
-    "vat_type":           "1",
+    api_key:             params.apiKey,
+    api_email:           params.apiEmail,
+    doc_type:            String(params.docType),
+    customer_name:       customerName,
+    customer_email:      params.clientEmail,
+    lang:                "he",
+    send_email_original: "false",
+    vat_type:            "1",
   });
 
   if (params.ezCountClientId) {
@@ -65,12 +65,21 @@ export async function createEZCountDoc(params: CreateDocParams): Promise<{ docNu
     body,
   });
 
-  if (!res.ok) throw new Error(`EZCount HTTP ${res.status}`);
+  const rawText = await res.text();
 
-  const json = (await res.json()) as EZCountResponse;
+  if (!res.ok) {
+    throw new Error(`EZCount HTTP ${res.status}: ${rawText.slice(0, 300)}`);
+  }
+
+  let json: EZCountResponse;
+  try {
+    json = JSON.parse(rawText) as EZCountResponse;
+  } catch {
+    throw new Error(`EZCount תגובה לא תקינה: ${rawText.slice(0, 300)}`);
+  }
 
   if (!json.success) {
-    throw new Error(json.error_message ?? "EZCount נכשל");
+    throw new Error(json.error_message ?? `EZCount נכשל (תגובה: ${rawText.slice(0, 300)})`);
   }
 
   return {
