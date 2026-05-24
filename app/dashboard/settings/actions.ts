@@ -42,6 +42,42 @@ export async function updateSettingsAction(values: SettingsFormValues): Promise<
   return { ok: true };
 }
 
+export async function testGmailAction(): Promise<{ ok: boolean; error?: string; debug?: string }> {
+  const supabase = await requireAuth();
+
+  const { data: settings, error: dbErr } = await supabase
+    .from("app_settings").select("gmail_refresh_token").eq("id", 1).single();
+
+  if (dbErr) return { ok: false, error: "שגיאת DB", debug: dbErr.message };
+  if (!settings?.gmail_refresh_token) return { ok: false, error: "Gmail Refresh Token לא מוגדר בהגדרות" };
+
+  const to = process.env.GMAIL_USER_EMAIL;
+  if (!to) return { ok: false, error: "GMAIL_USER_EMAIL לא מוגדר ב-Vercel Environment Variables" };
+
+  try {
+    const { sendEmail } = await import("@/lib/gmail");
+    await sendEmail({
+      refreshToken: settings.gmail_refresh_token,
+      to,
+      subject: "בדיקת חיבור Gmail — נדלניסטי 360",
+      body: `שלום גיא,
+
+זוהי הודעת בדיקה אוטומטית ממערכת ניהול החשבוניות.
+
+אם קיבלת את ההודעה הזאת — Gmail מחובר ועובד תקין.
+
+נשלח מ: ${to}
+תאריך: ${new Date().toLocaleDateString("he-IL", { dateStyle: "full" })}
+
+— נדלניסטי 360`,
+    });
+    return { ok: true, debug: `נשלח אל ${to}` };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
+}
+
 export async function testEzcountAction(): Promise<{ ok: boolean; docNumber?: string; docUrl?: string; error?: string; debug?: string }> {
   const supabase = await requireAuth();
 

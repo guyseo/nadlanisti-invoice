@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { updateSettingsAction, testEzcountAction, type SettingsFormValues } from "./actions";
+import { updateSettingsAction, testEzcountAction, testGmailAction, type SettingsFormValues } from "./actions";
 import type { AppSettingsRow } from "@/types/db";
-import { CheckCircle2, AlertCircle, Eye, EyeOff, Mail, Plug } from "lucide-react";
+import { CheckCircle2, AlertCircle, Eye, EyeOff, Mail, Plug, Send } from "lucide-react";
 import {
   INVOICE_PLACEHOLDERS,
   DEFAULT_INVOICE_SUBJECT,
@@ -79,6 +79,7 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
   const [status, setStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [ezcountTest, setEzcountTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; msg?: string; docUrl?: string; debug?: string }>({ state: "idle" });
+  const [gmailTest, setGmailTest]     = useState<{ state: "idle" | "testing" | "ok" | "error"; msg?: string; debug?: string }>({ state: "idle" });
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(SettingsSchema),
@@ -93,6 +94,16 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
       invoice_email_body:    settings.invoice_email_body    ?? DEFAULT_INVOICE_BODY,
     },
   });
+
+  async function handleTestGmail() {
+    setGmailTest({ state: "testing" });
+    const res = await testGmailAction();
+    if (res.ok) {
+      setGmailTest({ state: "ok", msg: "מייל בדיקה נשלח בהצלחה", debug: res.debug });
+    } else {
+      setGmailTest({ state: "error", msg: res.error, debug: res.debug });
+    }
+  }
 
   async function handleTestEzcount() {
     setEzcountTest({ state: "testing" });
@@ -263,6 +274,53 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
           <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.25)", marginTop: "6px" }}>
             Token נוצר דרך Google OAuth2 — ראה הוראות חיבור
           </p>
+        </div>
+
+        <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={handleTestGmail}
+            disabled={gmailTest.state === "testing"}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              padding: "8px 16px",
+              background: gmailTest.state === "testing" ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.1)",
+              border: "1px solid rgba(99,102,241,0.3)",
+              borderRadius: "8px", color: "#a5b4fc",
+              fontSize: "12px", fontWeight: 700,
+              cursor: gmailTest.state === "testing" ? "not-allowed" : "pointer",
+            }}
+          >
+            <Send size={13} />
+            {gmailTest.state === "testing" ? "שולח..." : "שלח מייל בדיקה"}
+          </button>
+
+          {gmailTest.state === "ok" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#86efac", fontSize: "12px", fontWeight: 600 }}>
+                <CheckCircle2 size={14} />
+                {gmailTest.msg}
+              </div>
+              {gmailTest.debug && (
+                <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.25)", fontFamily: "monospace", marginRight: "20px" }}>
+                  {gmailTest.debug}
+                </p>
+              )}
+            </div>
+          )}
+          {gmailTest.state === "error" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#fca5a5", fontSize: "12px", fontWeight: 600 }}>
+                <AlertCircle size={14} />
+                {gmailTest.msg}
+              </div>
+              {gmailTest.debug && (
+                <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.25)", fontFamily: "monospace", marginRight: "20px" }}>
+                  {gmailTest.debug}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
