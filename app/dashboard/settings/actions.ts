@@ -42,28 +42,37 @@ export async function updateSettingsAction(values: SettingsFormValues): Promise<
   return { ok: true };
 }
 
-export async function testEzcountAction(): Promise<{ ok: boolean; docNumber?: string; docUrl?: string; error?: string }> {
+export async function testEzcountAction(): Promise<{ ok: boolean; docNumber?: string; docUrl?: string; error?: string; debug?: string }> {
   const supabase = await requireAuth();
 
-  const { data: settings } = await supabase
+  const { data: settings, error: dbErr } = await supabase
     .from("app_settings").select("ezcount_api_key, ezcount_api_email, vat_rate").eq("id", 1).single();
 
-  if (!settings?.ezcount_api_key || !settings?.ezcount_api_email) {
-    return { ok: false, error: "EZCount API Key ואימייל לא מוגדרים בהגדרות" };
-  }
+  if (dbErr) return { ok: false, error: "שגיאת DB", debug: dbErr.message };
+  if (!settings) return { ok: false, error: "הגדרות לא נמצאו ב-DB" };
+
+  const apiKey   = settings.ezcount_api_key?.trim() ?? "";
+  const apiEmail = settings.ezcount_api_email?.trim() ?? "";
+
+  if (!apiKey)   return { ok: false, error: "API Key ריק — שמור את ההגדרות שוב", debug: `email=${apiEmail || "(ריק)"}` };
+  if (!apiEmail) return { ok: false, error: "אימייל EZCount ריק — שמור את ההגדרות שוב" };
+
+  // Mask key for debug (show first 6 chars only)
+  const maskedKey = apiKey.slice(0, 6) + "***";
 
   try {
     const result = await createEZCountDoc({
-      apiKey:    settings.ezcount_api_key,
-      apiEmail:  settings.ezcount_api_email,
-      clientName: "TEST — בדיקת חיבור",
-      clientEmail: settings.ezcount_api_email,
-      docType:   300,
-      lines:     [{ description: "בדיקת חיבור — ניתן למחוק", amount: 1, quantity: 1 }],
-      vatRate:   settings.vat_rate,
+      apiKey,
+      apiEmail,
+      clientName:  "TEST — בדיקת חיבור",
+      clientEmail: apiEmail,
+      docType:     300,
+      lines:       [{ description: "בדיקת חיבור — ניתן למחוק", amount: 1, quantity: 1 }],
+      vatRate:     settings.vat_rate ?? 0.18,
     });
-    return { ok: true, docNumber: result.docNumber, docUrl: result.docUrl };
+    return { ok: true, docNumber: result.docNumber, docUrl: result.docUrl, debug: `key=${maskedKey}` };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "שגיאה לא ידועה" };
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg, debug: `key=${maskedKey} | email=${apiEmail}` };
   }
 }

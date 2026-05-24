@@ -78,7 +78,7 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
   const [showPreview, setShowPreview] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
-  const [ezcountTest, setEzcountTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; msg?: string; docUrl?: string }>({ state: "idle" });
+  const [ezcountTest, setEzcountTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; msg?: string; docUrl?: string; debug?: string }>({ state: "idle" });
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(SettingsSchema),
@@ -98,9 +98,9 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
     setEzcountTest({ state: "testing" });
     const res = await testEzcountAction();
     if (res.ok) {
-      setEzcountTest({ state: "ok", msg: `מסמך נוצר בהצלחה — מספר ${res.docNumber}`, docUrl: res.docUrl });
+      setEzcountTest({ state: "ok", msg: `מסמך נוצר בהצלחה — מספר ${res.docNumber}`, docUrl: res.docUrl, debug: res.debug });
     } else {
-      setEzcountTest({ state: "error", msg: res.error });
+      setEzcountTest({ state: "error", msg: res.error, debug: res.debug });
     }
   }
 
@@ -211,9 +211,16 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
             </div>
           )}
           {ezcountTest.state === "error" && (
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#fca5a5", fontSize: "12px", fontWeight: 600 }}>
-              <AlertCircle size={14} />
-              {ezcountTest.msg}
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#fca5a5", fontSize: "12px", fontWeight: 600 }}>
+                <AlertCircle size={14} />
+                {ezcountTest.msg}
+              </div>
+              {ezcountTest.debug && (
+                <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.25)", fontFamily: "monospace", marginRight: "20px" }}>
+                  {ezcountTest.debug}
+                </p>
+              )}
             </div>
           )}
         </div>
