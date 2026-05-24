@@ -41,7 +41,7 @@ export async function createEZCountDoc(params: CreateDocParams): Promise<{ docNu
   const body = new URLSearchParams({
     api_key:             params.apiKey,
     api_email:           params.apiEmail,
-    doc_type:            String(params.docType),
+    type:                String(params.docType),
     customer_name:       customerName,
     customer_email:      params.clientEmail,
     lang:                "he",
