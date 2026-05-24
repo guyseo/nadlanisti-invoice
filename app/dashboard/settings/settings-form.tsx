@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { updateSettingsAction, type SettingsFormValues } from "./actions";
+import { updateSettingsAction, testEzcountAction, type SettingsFormValues } from "./actions";
 import type { AppSettingsRow } from "@/types/db";
-import { CheckCircle2, AlertCircle, Eye, EyeOff, Mail } from "lucide-react";
+import { CheckCircle2, AlertCircle, Eye, EyeOff, Mail, Plug } from "lucide-react";
 import {
   INVOICE_PLACEHOLDERS,
   DEFAULT_INVOICE_SUBJECT,
@@ -78,6 +78,7 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
   const [showPreview, setShowPreview] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [ezcountTest, setEzcountTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; msg?: string; docUrl?: string }>({ state: "idle" });
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(SettingsSchema),
@@ -92,6 +93,16 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
       invoice_email_body:    settings.invoice_email_body    ?? DEFAULT_INVOICE_BODY,
     },
   });
+
+  async function handleTestEzcount() {
+    setEzcountTest({ state: "testing" });
+    const res = await testEzcountAction();
+    if (res.ok) {
+      setEzcountTest({ state: "ok", msg: `מסמך נוצר בהצלחה — מספר ${res.docNumber}`, docUrl: res.docUrl });
+    } else {
+      setEzcountTest({ state: "error", msg: res.error });
+    }
+  }
 
   async function onSubmit(values: SettingsFormValues) {
     setStatus("saving");
@@ -159,6 +170,52 @@ export default function SettingsForm({ settings, hasEzcountKey, hasGmailToken }:
               <p style={{ fontSize: "11px", color: "#fca5a5", marginTop: "4px" }}>{form.formState.errors.ezcount_api_email.message}</p>
             )}
           </div>
+        </div>
+
+        {/* Test button */}
+        <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={handleTestEzcount}
+            disabled={ezcountTest.state === "testing"}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              padding: "8px 16px",
+              background: ezcountTest.state === "testing" ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.1)",
+              border: "1px solid rgba(99,102,241,0.3)",
+              borderRadius: "8px", color: "#a5b4fc",
+              fontSize: "12px", fontWeight: 700,
+              cursor: ezcountTest.state === "testing" ? "not-allowed" : "pointer",
+            }}
+          >
+            <Plug size={13} />
+            {ezcountTest.state === "testing" ? "בודק..." : "בדוק חיבור EZCount"}
+          </button>
+
+          {ezcountTest.state === "ok" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#86efac", fontSize: "12px", fontWeight: 600 }}>
+                <CheckCircle2 size={14} />
+                {ezcountTest.msg}
+              </div>
+              {ezcountTest.docUrl && (
+                <a
+                  href={ezcountTest.docUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: "11px", color: "#a5b4fc", textDecoration: "underline" }}
+                >
+                  פתח מסמך בדיקה ↗
+                </a>
+              )}
+            </div>
+          )}
+          {ezcountTest.state === "error" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#fca5a5", fontSize: "12px", fontWeight: 600 }}>
+              <AlertCircle size={14} />
+              {ezcountTest.msg}
+            </div>
+          )}
         </div>
       </div>
 

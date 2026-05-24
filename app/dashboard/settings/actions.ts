@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/supabase/require-auth";
+import { createEZCountDoc } from "@/lib/ezcount";
 import { z } from "zod";
 
 const SettingsSchema = z.object({
@@ -39,4 +40,30 @@ export async function updateSettingsAction(values: SettingsFormValues): Promise<
 
   revalidatePath("/dashboard/settings");
   return { ok: true };
+}
+
+export async function testEzcountAction(): Promise<{ ok: boolean; docNumber?: string; docUrl?: string; error?: string }> {
+  const supabase = await requireAuth();
+
+  const { data: settings } = await supabase
+    .from("app_settings").select("ezcount_api_key, ezcount_api_email, vat_rate").eq("id", 1).single();
+
+  if (!settings?.ezcount_api_key || !settings?.ezcount_api_email) {
+    return { ok: false, error: "EZCount API Key ואימייל לא מוגדרים בהגדרות" };
+  }
+
+  try {
+    const result = await createEZCountDoc({
+      apiKey:    settings.ezcount_api_key,
+      apiEmail:  settings.ezcount_api_email,
+      clientName: "TEST — בדיקת חיבור",
+      clientEmail: settings.ezcount_api_email,
+      docType:   300,
+      lines:     [{ description: "בדיקת חיבור — ניתן למחוק", amount: 1, quantity: 1 }],
+      vatRate:   settings.vat_rate,
+    });
+    return { ok: true, docNumber: result.docNumber, docUrl: result.docUrl };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "שגיאה לא ידועה" };
+  }
 }
