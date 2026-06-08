@@ -15,19 +15,34 @@ const LineSchema = z.object({
   sort_order: z.number().int().default(0),
 });
 
+const validMultiEmails = (val: string) => {
+  const emails = val.split(",").map(e => e.trim()).filter(Boolean);
+  return emails.length > 0 && emails.every(e => z.string().email().safeParse(e).success);
+};
+
 const ClientSchema = z.object({
   name: z.string().min(1, "שם חובה"),
-  email: z.string().email("אימייל לא תקין"),
+  email: z.string().refine(validMultiEmails, "אימייל לא תקין"),
   phone: z.string().optional(),
   billing_type: z.enum(["fixed", "media_commission", "auto_cc"]),
   email_delivery_mode: z.enum(["combined", "separate"]).default("separate"),
   monthly_fee: z.number().positive().optional().nullable(),
   commission_rate: z.number().min(0).max(1).optional().nullable(),
   doc_type: z.union([z.literal(300), z.literal(305), z.literal(320), z.literal(400)]).default(320),
-  invoice_email: z.union([z.literal(""), z.string().email("אימייל לא תקין")]).optional().nullable(),
-  report_email: z.union([z.literal(""), z.string().email("אימייל לא תקין")]).optional().nullable(),
+  invoice_email: z.string().refine(
+    (val) => !val || !val.trim() || validMultiEmails(val),
+    "אימייל לא תקין"
+  ).optional().nullable(),
+  report_email: z.string().refine(
+    (val) => !val || !val.trim() || validMultiEmails(val),
+    "אימייל לא תקין"
+  ).optional().nullable(),
   invoice_email_subject: z.string().optional().nullable(),
   invoice_email_body: z.string().optional().nullable(),
+  additional_emails: z.string().refine(
+    (val) => !val || !val.trim() || validMultiEmails(val),
+    "אימייל לא תקין"
+  ).optional().default(""),
   ezcount_customer_name: z.string().optional().nullable(),
   ezcount_client_id: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -186,13 +201,14 @@ export async function createManualInvoiceAction(
   });
 
   const invoiceTo: string = client.invoice_email || client.email;
+  const additionalEmails: string = client.additional_emails ?? "";
 
   revalidatePath("/dashboard/clients");
   revalidatePath("/dashboard");
 
   return {
     success: true,
-    data: { draftId, clientEmail: invoiceTo, clientName: client.name, subject, body },
+    data: { draftId, clientEmail: invoiceTo, clientName: client.name, additionalEmails, subject, body },
   };
 }
 

@@ -15,7 +15,15 @@ import {
 import { createClientAction, updateClientAction, type ClientFormValues } from "./actions";
 import type { ClientRow, LineTemplateRow } from "@/types/db";
 
-const emailOrEmpty = z.union([z.literal(""), z.string().email("אימייל לא תקין")]).optional().nullable();
+const isValidEmails = (val: string) => {
+  const emails = val.split(",").map(e => e.trim()).filter(Boolean);
+  return emails.length > 0 && emails.every(e => z.string().email().safeParse(e).success);
+};
+
+const emailOrEmpty = z.string().refine(
+  (val) => !val || !val.trim() || isValidEmails(val),
+  "אימייל לא תקין"
+).optional().nullable();
 
 const LineSchema = z.object({
   description: z.string().min(1, "חובה"),
@@ -26,7 +34,7 @@ const LineSchema = z.object({
 
 const FormSchema = z.object({
   name: z.string().min(1, "שם חובה"),
-  email: z.string().email("אימייל לא תקין"),
+  email: z.string().refine(isValidEmails, "אימייל לא תקין"),
   phone: z.string().optional(),
   billing_type: z.enum(["fixed", "media_commission", "auto_cc"]),
   email_delivery_mode: z.enum(["combined", "separate"]),
@@ -37,6 +45,10 @@ const FormSchema = z.object({
   report_email: emailOrEmpty,
   invoice_email_subject: z.string().optional().nullable(),
   invoice_email_body: z.string().optional().nullable(),
+  additional_emails: z.string().refine(
+    (val) => !val || !val.trim() || isValidEmails(val),
+    "אימייל לא תקין"
+  ).optional().default(""),
   ezcount_customer_name: z.string().optional().nullable(),
   ezcount_client_id: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -193,6 +205,7 @@ export default function ClientForm({ open, onClose, client }: Props) {
           report_email: client.report_email ?? "",
           invoice_email_subject: client.invoice_email_subject ?? "",
           invoice_email_body: client.invoice_email_body ?? "",
+          additional_emails: client.additional_emails ?? "",
           ezcount_customer_name: client.ezcount_customer_name ?? "",
           ezcount_client_id: client.ezcount_client_id ?? "",
           notes: client.notes ?? "",
@@ -308,8 +321,12 @@ export default function ClientForm({ open, onClose, client }: Props) {
                   onFocus={focusOn} onBlur={focusOff} />
               </Field>
               <Field label="אימייל *" error={form.formState.errors.email?.message}>
-                <input {...form.register("email")} type="email" dir="ltr" style={inp} placeholder="client@email.com"
-                  onFocus={focusOn} onBlur={focusOff} />
+                <MultiEmailInput
+                  value={form.watch("email") ?? ""}
+                  onChange={(v) => form.setValue("email", v, { shouldValidate: true })}
+                  placeholder="client@email.com"
+                  hasError={!!form.formState.errors.email}
+                />
               </Field>
               <Field label="טלפון">
                 <input {...form.register("phone")} dir="ltr" style={inp} placeholder="05X-XXXXXXX"
@@ -387,7 +404,7 @@ export default function ClientForm({ open, onClose, client }: Props) {
                 mainEmail={form.watch("email")}
                 separateValue={form.watch("invoice_email") ?? ""}
                 onClear={() => form.setValue("invoice_email", "")}
-                inputProps={form.register("invoice_email")}
+                onChange={(v) => form.setValue("invoice_email", v, { shouldValidate: true })}
                 error={form.formState.errors.invoice_email?.message}
               />
 
@@ -399,9 +416,33 @@ export default function ClientForm({ open, onClose, client }: Props) {
                 mainEmail={form.watch("email")}
                 separateValue={form.watch("report_email") ?? ""}
                 onClear={() => form.setValue("report_email", "")}
-                inputProps={form.register("report_email")}
+                onChange={(v) => form.setValue("report_email", v, { shouldValidate: true })}
                 error={form.formState.errors.report_email?.message}
               />
+
+              {/* מיילים נוספים */}
+              <div style={{
+                background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: "10px", padding: "14px 16px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <p style={{ fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.7)", margin: 0 }}>
+                    📋 מיילים נוספים (CC)
+                  </p>
+                  <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.25)" }}>יקבלו עותק מכל חשבונית ודוח</span>
+                </div>
+                <MultiEmailInput
+                  value={form.watch("additional_emails") ?? ""}
+                  onChange={(v) => form.setValue("additional_emails", v, { shouldValidate: true })}
+                  placeholder="accountant@example.com"
+                  hasError={!!form.formState.errors.additional_emails}
+                />
+                {form.formState.errors.additional_emails && (
+                  <p style={{ fontSize: "10px", color: "#fca5a5", marginTop: "4px" }}>
+                    {form.formState.errors.additional_emails.message}
+                  </p>
+                )}
+              </div>
 
               {/* אופן שליחה */}
               <div style={{
@@ -760,6 +801,136 @@ function ClientEmailTemplate({ form }: { form: any }) {
   );
 }
 
+/* ── Multi-email input ── */
+function MultiEmailInput({
+  value,
+  onChange,
+  placeholder,
+  hasError,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  hasError?: boolean;
+}) {
+  const [inputVal, setInputVal] = useState("");
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const emails = value ? value.split(",").map(e => e.trim()).filter(Boolean) : [];
+
+  function addEmail(raw: string) {
+    const trimmed = raw.replace(/,/g, "").trim();
+    if (!trimmed) return;
+    const next = emails.includes(trimmed) ? emails : [...emails, trimmed];
+    onChange(next.join(","));
+    setInputVal("");
+  }
+
+  function removeEmail(idx: number) {
+    onChange(emails.filter((_, i) => i !== idx).join(","));
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addEmail(inputVal);
+    } else if (e.key === "Backspace" && !inputVal && emails.length > 0) {
+      removeEmail(emails.length - 1);
+    }
+  }
+
+  function handleBlur() {
+    setFocused(false);
+    if (inputVal.trim()) addEmail(inputVal);
+  }
+
+  return (
+    <div
+      onClick={() => inputRef.current?.focus()}
+      style={{
+        ...inp,
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "5px",
+        alignItems: "center",
+        minHeight: "38px",
+        height: "auto",
+        cursor: "text",
+        padding: "6px 10px",
+        borderColor: focused
+          ? "rgba(99,102,241,0.5)"
+          : hasError
+            ? "rgba(239,68,68,0.4)"
+            : "rgba(255,255,255,0.1)",
+        boxShadow: focused
+          ? "0 0 0 3px rgba(99,102,241,0.1)"
+          : hasError
+            ? "0 0 0 3px rgba(239,68,68,0.05)"
+            : "none",
+      }}
+    >
+      {emails.map((email, i) => {
+        const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        return (
+          <span
+            key={i}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: "2px 6px 2px 9px",
+              background: valid ? "rgba(99,102,241,0.12)" : "rgba(239,68,68,0.1)",
+              border: `1px solid ${valid ? "rgba(99,102,241,0.3)" : "rgba(239,68,68,0.35)"}`,
+              borderRadius: "5px",
+              fontSize: "12px",
+              color: valid ? "#a5b4fc" : "#fca5a5",
+              direction: "ltr",
+              fontFamily: "monospace",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {email}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); removeEmail(i); }}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "inherit", opacity: 0.65, padding: 0,
+                display: "flex", alignItems: "center",
+              }}
+            >
+              <X size={10} />
+            </button>
+          </span>
+        );
+      })}
+      <input
+        ref={inputRef}
+        type="text"
+        value={inputVal}
+        onChange={(e) => setInputVal(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setFocused(true)}
+        onBlur={handleBlur}
+        placeholder={emails.length === 0 ? (placeholder ?? "הזן אימייל ולחץ Enter") : ""}
+        dir="ltr"
+        style={{
+          flex: 1,
+          minWidth: "140px",
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          color: "white",
+          fontSize: "13px",
+          fontFamily: "inherit",
+          padding: "2px 0",
+        }}
+      />
+    </div>
+  );
+}
+
 interface EmailDestRowProps {
   label: string;
   icon: string;
@@ -767,11 +938,11 @@ interface EmailDestRowProps {
   mainEmail: string;
   separateValue: string;
   onClear: () => void;
-  inputProps: React.InputHTMLAttributes<HTMLInputElement>;
+  onChange: (v: string) => void;
   error?: string;
 }
 
-function EmailDestRow({ label, icon, hint, mainEmail, separateValue, onClear, inputProps, error }: EmailDestRowProps) {
+function EmailDestRow({ label, icon, hint, mainEmail, separateValue, onClear, onChange, error }: EmailDestRowProps) {
   const hasValue = separateValue.trim().length > 0;
   const [showInput, setShowInput] = useState(hasValue);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -848,14 +1019,11 @@ function EmailDestRow({ label, icon, hint, mainEmail, separateValue, onClear, in
         </div>
       ) : (
         <div ref={containerRef}>
-          <input
-            {...inputProps}
-            type="email"
-            dir="ltr"
+          <MultiEmailInput
+            value={separateValue}
+            onChange={onChange}
             placeholder="other@example.com"
-            style={inp}
-            onFocus={focusOn}
-            onBlur={focusOff}
+            hasError={!!error}
           />
           {error && <p style={{ fontSize: "10px", color: "#fca5a5", marginTop: "4px" }}>{error}</p>}
         </div>

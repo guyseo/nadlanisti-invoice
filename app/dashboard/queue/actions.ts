@@ -112,6 +112,7 @@ export async function approveDraftAction(draftId: string): Promise<ActionResult<
   revalidatePath("/dashboard");
 
   const invoiceTo: string = client.invoice_email || client.email;
+  const additionalEmails: string = client.additional_emails ?? "";
   const { subject, body } = buildInvoiceEmail({
     subject_template: client.invoice_email_subject || settings.invoice_email_subject,
     body_template:    client.invoice_email_body    || settings.invoice_email_body,
@@ -126,7 +127,7 @@ export async function approveDraftAction(draftId: string): Promise<ActionResult<
 
   return {
     success: true,
-    data: { draftId, clientEmail: invoiceTo, clientName: client.name, subject, body },
+    data: { draftId, clientEmail: invoiceTo, clientName: client.name, additionalEmails, subject, body },
   };
 }
 
@@ -157,15 +158,16 @@ export async function sendDraftEmailAction(
   }
 
   const invoiceTo: string = client.invoice_email || client.email;
+  const cc: string = client.additional_emails ?? "";
 
   try {
-    await sendEmail({ refreshToken: settings.gmail_refresh_token, to: invoiceTo, subject, body });
+    await sendEmail({ refreshToken: settings.gmail_refresh_token, to: invoiceTo, cc: cc || undefined, subject, body });
 
     await supabase.from("email_log").insert({
       client_id:  client.id,
       draft_id:   draftId,
       email_type: "invoice" as const,
-      to_email:   invoiceTo,
+      to_email:   cc ? `${invoiceTo}; ${cc}` : invoiceTo,
       subject,
       status:     "sent",
     });

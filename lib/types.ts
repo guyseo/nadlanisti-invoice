@@ -42,6 +42,7 @@ export interface EmailPreviewData {
   draftId: string;
   clientEmail: string;
   clientName: string;
+  additionalEmails?: string;
   subject: string;
   body: string;
 }

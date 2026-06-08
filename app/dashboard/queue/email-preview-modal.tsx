@@ -93,6 +93,11 @@ export default function EmailPreviewModal({ data, onClose, onSent }: Props) {
               <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "1px" }}>
                 אל: {data.clientEmail}
               </p>
+              {data.additionalEmails?.trim() && (
+                <p style={{ fontSize: "11px", color: "rgba(165,180,252,0.5)", marginTop: "1px" }}>
+                  CC: {data.additionalEmails}
+                </p>
+              )}
             </div>
           </div>
           <button
@@ -125,7 +130,10 @@ export default function EmailPreviewModal({ data, onClose, onSent }: Props) {
                 ✓
               </div>
               <p style={{ fontSize: "15px", fontWeight: 700, color: "white" }}>המייל נשלח בהצלחה</p>
-              <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)" }}>ל-{data.clientEmail}</p>
+              <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)" }}>
+                ל-{data.clientEmail}
+                {data.additionalEmails?.trim() && ` + CC: ${data.additionalEmails}`}
+              </p>
             </div>
           ) : (
             <>

@@ -1,6 +1,7 @@
 import type { LineItem } from "./types";
 
 const EZCOUNT_URL = "https://www.ezcount.co.il/api/createDoc";
+const FETCH_TIMEOUT_MS = 15_000;
 
 interface EZCountItem {
   details: string;
@@ -63,6 +64,7 @@ export async function createEZCountDoc(params: CreateDocParams): Promise<{ docNu
   const res = await fetch(EZCOUNT_URL, {
     method: "POST",
     body,
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 
   const rawText = await res.text();
