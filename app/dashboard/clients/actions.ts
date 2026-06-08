@@ -6,7 +6,7 @@ import { requireAuth } from "@/lib/supabase/require-auth";
 import { createEZCountDoc } from "@/lib/ezcount";
 import { buildInvoiceEmail } from "@/lib/email-templates";
 import { calcTotals } from "@/lib/calc";
-import type { ActionResult, LineItem, EmailPreviewData } from "@/lib/types";
+import type { ActionResult, LineItem, EmailPreviewData, AdditionalEmail } from "@/lib/types";
 
 const LineSchema = z.object({
   description: z.string().min(1),
@@ -39,10 +39,10 @@ const ClientSchema = z.object({
   ).optional().nullable(),
   invoice_email_subject: z.string().optional().nullable(),
   invoice_email_body: z.string().optional().nullable(),
-  additional_emails: z.string().refine(
-    (val) => !val || !val.trim() || validMultiEmails(val),
-    "אימייל לא תקין"
-  ).optional().default(""),
+  additional_emails: z.array(z.object({
+    email: z.string().email("אימייל לא תקין"),
+    type: z.enum(["invoices", "reports", "both"]),
+  })).default([]),
   ezcount_customer_name: z.string().optional().nullable(),
   ezcount_client_id: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -201,14 +201,18 @@ export async function createManualInvoiceAction(
   });
 
   const invoiceTo: string = client.invoice_email || client.email;
-  const additionalEmails: string = client.additional_emails ?? "";
+  const extraEmails = (client.additional_emails as AdditionalEmail[] | null) ?? [];
+  const additionalEmails = extraEmails
+    .filter(e => e.type === "invoices" || e.type === "both")
+    .map(e => e.email)
+    .join(", ");
 
   revalidatePath("/dashboard/clients");
   revalidatePath("/dashboard");
 
   return {
     success: true,
-    data: { draftId, clientEmail: invoiceTo, clientName: client.name, additionalEmails, subject, body },
+    data: { draftId, clientEmail: invoiceTo, clientName: client.name, additionalEmails: additionalEmails || undefined, subject, body },
   };
 }
 

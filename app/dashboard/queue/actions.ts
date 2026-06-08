@@ -7,7 +7,7 @@ import { sendEmail } from "@/lib/gmail";
 import { calcTotals } from "@/lib/calc";
 import { buildInvoiceEmail } from "@/lib/email-templates";
 import { generateMonthlyDrafts, currentBillingMonth } from "@/lib/draft-generator";
-import type { ActionResult, LineItem, EmailPreviewData } from "@/lib/types";
+import type { ActionResult, LineItem, EmailPreviewData, AdditionalEmail } from "@/lib/types";
 
 export type { EmailPreviewData };
 
@@ -112,7 +112,11 @@ export async function approveDraftAction(draftId: string): Promise<ActionResult<
   revalidatePath("/dashboard");
 
   const invoiceTo: string = client.invoice_email || client.email;
-  const additionalEmails: string = client.additional_emails ?? "";
+  const extraEmails = (client.additional_emails as AdditionalEmail[] | null) ?? [];
+  const additionalEmails = extraEmails
+    .filter(e => e.type === "invoices" || e.type === "both")
+    .map(e => e.email)
+    .join(", ");
   const { subject, body } = buildInvoiceEmail({
     subject_template: client.invoice_email_subject || settings.invoice_email_subject,
     body_template:    client.invoice_email_body    || settings.invoice_email_body,
@@ -127,7 +131,7 @@ export async function approveDraftAction(draftId: string): Promise<ActionResult<
 
   return {
     success: true,
-    data: { draftId, clientEmail: invoiceTo, clientName: client.name, additionalEmails, subject, body },
+    data: { draftId, clientEmail: invoiceTo, clientName: client.name, additionalEmails: additionalEmails || undefined, subject, body },
   };
 }
 
@@ -158,7 +162,11 @@ export async function sendDraftEmailAction(
   }
 
   const invoiceTo: string = client.invoice_email || client.email;
-  const cc: string = client.additional_emails ?? "";
+  const extraEmails = (client.additional_emails as AdditionalEmail[] | null) ?? [];
+  const cc = extraEmails
+    .filter(e => e.type === "invoices" || e.type === "both")
+    .map(e => e.email)
+    .join(", ");
 
   try {
     await sendEmail({ refreshToken: settings.gmail_refresh_token, to: invoiceTo, cc: cc || undefined, subject, body });
@@ -167,7 +175,7 @@ export async function sendDraftEmailAction(
       client_id:  client.id,
       draft_id:   draftId,
       email_type: "invoice" as const,
-      to_email:   cc ? `${invoiceTo}; ${cc}` : invoiceTo,
+      to_email:   cc ? `${invoiceTo}, ${cc}` : invoiceTo,
       subject,
       status:     "sent",
     });

@@ -45,10 +45,10 @@ const FormSchema = z.object({
   report_email: emailOrEmpty,
   invoice_email_subject: z.string().optional().nullable(),
   invoice_email_body: z.string().optional().nullable(),
-  additional_emails: z.string().refine(
-    (val) => !val || !val.trim() || isValidEmails(val),
-    "אימייל לא תקין"
-  ).optional().default(""),
+  additional_emails: z.array(z.object({
+    email: z.string().email("אימייל לא תקין"),
+    type: z.enum(["invoices", "reports", "both"]),
+  })).default([]),
   ezcount_customer_name: z.string().optional().nullable(),
   ezcount_client_id: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -205,7 +205,7 @@ export default function ClientForm({ open, onClose, client }: Props) {
           report_email: client.report_email ?? "",
           invoice_email_subject: client.invoice_email_subject ?? "",
           invoice_email_body: client.invoice_email_body ?? "",
-          additional_emails: client.additional_emails ?? "",
+          additional_emails: (client.additional_emails as { email: string; type: "invoices" | "reports" | "both" }[] | null) ?? [],
           ezcount_customer_name: client.ezcount_customer_name ?? "",
           ezcount_client_id: client.ezcount_client_id ?? "",
           notes: client.notes ?? "",
@@ -226,6 +226,7 @@ export default function ClientForm({ open, onClose, client }: Props) {
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
+  const { fields: ccFields, append: appendCC, remove: removeCC } = useFieldArray({ control: form.control, name: "additional_emails" });
   const billingType = form.watch("billing_type");
 
   useEffect(() => {
@@ -420,27 +421,81 @@ export default function ClientForm({ open, onClose, client }: Props) {
                 error={form.formState.errors.report_email?.message}
               />
 
-              {/* מיילים נוספים */}
+              {/* נמענים נוספים */}
               <div style={{
                 background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)",
                 borderRadius: "10px", padding: "14px 16px",
               }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: ccFields.length > 0 ? "10px" : "0" }}>
                   <p style={{ fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.7)", margin: 0 }}>
-                    📋 מיילים נוספים (CC)
+                    📋 נמענים נוספים
                   </p>
-                  <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.25)" }}>יקבלו עותק מכל חשבונית ודוח</span>
+                  <button
+                    type="button"
+                    onClick={() => appendCC({ email: "", type: "invoices" })}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "4px",
+                      padding: "4px 10px",
+                      background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)",
+                      borderRadius: "6px", color: "#a5b4fc", fontSize: "11px", fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Plus size={11} />
+                    הוסף מייל
+                  </button>
                 </div>
-                <MultiEmailInput
-                  value={form.watch("additional_emails") ?? ""}
-                  onChange={(v) => form.setValue("additional_emails", v, { shouldValidate: true })}
-                  placeholder="accountant@example.com"
-                  hasError={!!form.formState.errors.additional_emails}
-                />
-                {form.formState.errors.additional_emails && (
-                  <p style={{ fontSize: "10px", color: "#fca5a5", marginTop: "4px" }}>
-                    {form.formState.errors.additional_emails.message}
+
+                {ccFields.length === 0 ? (
+                  <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.2)", marginTop: "8px" }}>
+                    אין נמענים נוספים — ישלח רק לכתובות שהוגדרו למעלה
                   </p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {ccFields.map((field, i) => (
+                      <div key={field.id} style={{ display: "grid", gridTemplateColumns: "1fr 140px 32px", gap: "8px", alignItems: "start" }}>
+                        <div>
+                          <input
+                            {...form.register(`additional_emails.${i}.email`)}
+                            dir="ltr"
+                            placeholder="email@example.com"
+                            style={inp}
+                            onFocus={focusOn}
+                            onBlur={focusOff}
+                          />
+                          {form.formState.errors.additional_emails?.[i]?.email && (
+                            <p style={{ fontSize: "10px", color: "#fca5a5", marginTop: "3px" }}>
+                              {form.formState.errors.additional_emails[i]?.email?.message}
+                            </p>
+                          )}
+                        </div>
+                        <CustomSelect
+                          value={form.watch(`additional_emails.${i}.type`)}
+                          onChange={(v) => form.setValue(`additional_emails.${i}.type`, v as "invoices" | "reports" | "both")}
+                          options={[
+                            { value: "invoices", label: "חשבוניות" },
+                            { value: "reports",  label: "דוחות" },
+                            { value: "both",     label: "שניהם" },
+                          ]}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeCC(i)}
+                          style={{
+                            width: "32px", height: "36px",
+                            background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)",
+                            borderRadius: "8px", cursor: "pointer",
+                            color: "rgba(239,68,68,0.6)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.15)"; e.currentTarget.style.color = "#fca5a5"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.08)"; e.currentTarget.style.color = "rgba(239,68,68,0.6)"; }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 

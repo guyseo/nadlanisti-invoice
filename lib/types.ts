@@ -38,6 +38,11 @@ export interface ActionResult<T = undefined> {
   data?: T;
 }
 
+export interface AdditionalEmail {
+  email: string;
+  type: "invoices" | "reports" | "both";
+}
+
 export interface EmailPreviewData {
   draftId: string;
   clientEmail: string;

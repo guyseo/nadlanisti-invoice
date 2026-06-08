@@ -22,7 +22,7 @@ export interface Database {
           ezcount_customer_name: string | null;
           active: boolean;
           automation_active: boolean;
-          additional_emails: string;
+          additional_emails: Json;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -45,7 +45,7 @@ export interface Database {
           ezcount_customer_name?: string | null;
           active?: boolean;
           automation_active?: boolean;
-          additional_emails?: string;
+          additional_emails?: Json;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -68,7 +68,7 @@ export interface Database {
           ezcount_customer_name?: string | null;
           active?: boolean;
           automation_active?: boolean;
-          additional_emails?: string;
+          additional_emails?: Json;
           notes?: string | null;
           updated_at?: string;
         };
