@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Users, ClipboardList, FileText, BarChart3, Settings, LogOut } from "lucide-react";
+import { Users, ClipboardList, FileText, BarChart3, Settings, LogOut, Megaphone } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard",          label: "סקירה כללית", icon: BarChart3, exact: true },
-  { href: "/dashboard/clients",  label: "לקוחות",      icon: Users },
-  { href: "/dashboard/queue",    label: "תור אישור",   icon: ClipboardList },
-  { href: "/dashboard/invoices", label: "חשבוניות",    icon: FileText },
-  { href: "/dashboard/settings", label: "הגדרות",      icon: Settings },
+  { href: "/dashboard",               label: "סקירה כללית",   icon: BarChart3, exact: true },
+  { href: "/dashboard/clients",       label: "לקוחות",        icon: Users },
+  { href: "/dashboard/queue",         label: "תור אישור",     icon: ClipboardList },
+  { href: "/dashboard/invoices",      label: "חשבוניות",      icon: FileText },
+  { href: "/dashboard/ad-automation", label: "אוטומציית מדיה", icon: Megaphone },
+  { href: "/dashboard/settings",      label: "הגדרות",        icon: Settings },
 ];
 
 export default function DashboardSidebar({ userEmail }: { userEmail: string }) {

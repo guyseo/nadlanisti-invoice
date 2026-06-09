@@ -309,6 +309,143 @@ export interface Database {
         };
       };
 
+      ad_automation_settings: {
+        Row: {
+          id: 1;
+          browseract_api_key: string;
+          facebook_workflow_id: string;
+          google_workflow_id: string;
+          browseract_profile_id: string;
+          scrape_day: number;
+          session_healthy: boolean;
+          last_run_at: string | null;
+          email_subject: string | null;
+          email_body: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: 1;
+          browseract_api_key?: string;
+          facebook_workflow_id?: string;
+          google_workflow_id?: string;
+          browseract_profile_id?: string;
+          scrape_day?: number;
+          session_healthy?: boolean;
+          last_run_at?: string | null;
+          email_subject?: string | null;
+          email_body?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          browseract_api_key?: string;
+          facebook_workflow_id?: string;
+          google_workflow_id?: string;
+          browseract_profile_id?: string;
+          scrape_day?: number;
+          session_healthy?: boolean;
+          last_run_at?: string | null;
+          email_subject?: string | null;
+          email_body?: string | null;
+          updated_at?: string;
+        };
+      };
+
+      ad_accounts: {
+        Row: {
+          id: string;
+          client_id: string;
+          platform: "facebook" | "google";
+          account_id: string;
+          account_label: string | null;
+          recipient_email: string | null;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          platform: "facebook" | "google";
+          account_id: string;
+          account_label?: string | null;
+          recipient_email?: string | null;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          platform?: "facebook" | "google";
+          account_id?: string;
+          account_label?: string | null;
+          recipient_email?: string | null;
+          active?: boolean;
+          updated_at?: string;
+        };
+      };
+
+      ad_invoice_drafts: {
+        Row: {
+          id: string;
+          client_id: string;
+          ad_account_id: string | null;
+          platform: "facebook" | "google";
+          billing_month: string;
+          account_label: string | null;
+          pdf_path: string | null;
+          pdf_filename: string | null;
+          amount: number | null;
+          currency: string | null;
+          recipient_email: string | null;
+          status: "pending_review" | "sent" | "failed" | "skipped";
+          browseract_task_id: string | null;
+          error_message: string | null;
+          sent_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          ad_account_id?: string | null;
+          platform: "facebook" | "google";
+          billing_month: string;
+          account_label?: string | null;
+          pdf_path?: string | null;
+          pdf_filename?: string | null;
+          amount?: number | null;
+          currency?: string | null;
+          recipient_email?: string | null;
+          status?: "pending_review" | "sent" | "failed" | "skipped";
+          browseract_task_id?: string | null;
+          error_message?: string | null;
+          sent_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          ad_account_id?: string | null;
+          platform?: "facebook" | "google";
+          billing_month?: string;
+          account_label?: string | null;
+          pdf_path?: string | null;
+          pdf_filename?: string | null;
+          amount?: number | null;
+          currency?: string | null;
+          recipient_email?: string | null;
+          status?: "pending_review" | "sent" | "failed" | "skipped";
+          browseract_task_id?: string | null;
+          error_message?: string | null;
+          sent_at?: string | null;
+          updated_at?: string;
+        };
+      };
+
       app_settings: {
         Row: {
           id: 1;
@@ -384,3 +521,18 @@ export type AdsInvoiceUpdate = Database["public"]["Tables"]["ads_invoices"]["Upd
 
 export type AppSettingsRow = Database["public"]["Tables"]["app_settings"]["Row"];
 export type AppSettingsUpdate = Database["public"]["Tables"]["app_settings"]["Update"];
+
+// ── Ad-invoice automation (separate product) ──
+export type AdAutomationSettingsRow = Database["public"]["Tables"]["ad_automation_settings"]["Row"];
+export type AdAutomationSettingsUpdate = Database["public"]["Tables"]["ad_automation_settings"]["Update"];
+
+export type AdAccountRow = Database["public"]["Tables"]["ad_accounts"]["Row"];
+export type AdAccountInsert = Database["public"]["Tables"]["ad_accounts"]["Insert"];
+export type AdAccountUpdate = Database["public"]["Tables"]["ad_accounts"]["Update"];
+
+export type AdInvoiceDraftRow = Database["public"]["Tables"]["ad_invoice_drafts"]["Row"];
+export type AdInvoiceDraftInsert = Database["public"]["Tables"]["ad_invoice_drafts"]["Insert"];
+export type AdInvoiceDraftUpdate = Database["public"]["Tables"]["ad_invoice_drafts"]["Update"];
+
+export type AdPlatform = "facebook" | "google";
+export type AdInvoiceStatus = "pending_review" | "sent" | "failed" | "skipped";
